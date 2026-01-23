@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin - Spatio Property Services</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" />
+  <style>
+    body { background-color: #f8fafc; }
+    .sidebar { height: 100vh; background: #1e40af; color: white; position: fixed; width: 240px; }
+    .sidebar .nav-link { color: #cbd5e1; padding: 12px 20px; }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active { 
+      background: #334155; color: white; border-radius: 0 20px 20px 0; 
+    }
+    .main-content { margin-left: 240px; width: calc(100% - 240px); }
+    .main-header { background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000; }
+    .card-img-top { height: 200px; object-fit: cover; background: #e2e8f0; }
+    .description-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.85rem; }
+    /* MOBILE HEADER FIX */
+@media (max-width: 768px) {
+  .navbar {
+    gap: 10px;
+  }
+
+  .logo-text {
+    font-size: 1.05rem;
+    max-width: 165px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .logo-img {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+  </style>
+</head>
+<body>
+
+  <div class="modal fade" id="loginModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">Admin Login</h5>
+        </div>
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" placeholder="admin@spatio.com" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" placeholder="••••••••" />
+          </div>
+          <button class="btn btn-primary w-100" onclick="login()">Login</button>
+          <div id="loginError" class="text-danger mt-2 small text-center"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="mainApp" style="display:none;">
+    <div class="d-flex">
+      <div class="sidebar p-3">
+        <h4 class="mb-4 text-center"><i class="fas fa-home me-2"></i>Spatio Admin</h4>
+        <ul class="nav flex-column">
+          <li class="nav-item"><a class="nav-link active" href="#"><i class="fas fa-list me-2"></i>Listings</a></li>
+          <li class="nav-item mt-4"><a class="nav-link text-warning" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+        </ul>
+      </div>
+
+      <div class="main-content">
+        <nav class="main-header p-3 d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Property Management</h5>
+          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="fas fa-plus"></i> Add New Listing
+          </button>
+        </nav>
+
+        <div class="container-fluid py-4">
+          <div class="row" id="listingsContainer">
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5>Add New Property</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <form id="addForm">
+            <div class="row g-3">
+              <div class="col-md-6"><label>Location</label><input type="text" class="form-control" name="location" required></div>
+              <div class="col-md-6"><label>Type</label><input type="text" class="form-control" name="type" placeholder="Apartment, Land..." required></div>
+              <div class="col-md-6">
+                <label>Category</label>
+                <select class="form-select" name="category"><option value="For Sale">For Sale</option><option value="To Let">To Let</option></select>
+              </div>
+              <div class="col-md-6"><label>Price</label><input type="text" class="form-control" name="price" placeholder="KES 5,000,000" required></div>
+              <div class="col-md-6"><label>Size</label><input type="text" class="form-control" name="size" placeholder="e.g. 50x100 or 3BHK" required></div>
+              <div class="col-md-6">
+                <label>Status</label>
+                <select class="form-select" name="status"><option value="active">Active</option><option value="sold">Sold</option><option value="rented">Rented</option></select>
+              </div>
+              <div class="col-12"><label>Description</label><textarea class="form-control" name="description" rows="3"></textarea></div>
+              <div class="col-md-6"><label>Latitude</label><input type="number" step="any" class="form-control" name="lat"></div>
+              <div class="col-md-6"><label>Longitude</label><input type="number" step="any" class="form-control" name="lng"></div>
+              <div class="col-12">
+                <label>Property Photo</label>
+                <input type="file" class="form-control" id="photoInput" accept="image/*" required>
+                <img id="previewImg" class="mt-2 rounded border" style="max-height:150px; display:none;">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer"><button class="btn btn-primary" onclick="addListing()">Save Property</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5>Edit Property</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <form id="editForm">
+            <input type="hidden" name="id" id="editId">
+            <div class="row g-3">
+              <div class="col-md-6"><label>Location</label><input type="text" class="form-control" name="location" required></div>
+              <div class="col-md-6"><label>Type</label><input type="text" class="form-control" name="type" required></div>
+              <div class="col-md-6">
+                <label>Category</label>
+                <select class="form-select" name="category"><option value="For Sale">For Sale</option><option value="To Let">To Let</option></select>
+              </div>
+              <div class="col-md-6"><label>Price</label><input type="text" class="form-control" name="price" required></div>
+              <div class="col-md-6"><label>Size</label><input type="text" class="form-control" name="size" required></div>
+              <div class="col-md-6">
+                <label>Status</label>
+                <select class="form-select" name="status"><option value="active">Active</option><option value="sold">Sold</option><option value="rented">Rented</option></select>
+              </div>
+              <div class="col-12"><label>Description</label><textarea class="form-control" name="description" rows="3"></textarea></div>
+              <div class="col-md-6"><label>Latitude</label><input type="number" step="any" class="form-control" name="lat"></div>
+              <div class="col-md-6"><label>Longitude</label><input type="number" step="any" class="form-control" name="lng"></div>
+              <div class="col-12">
+                <label>Change Photo (Optional)</label>
+                <input type="file" class="form-control" id="editPhotoInput" accept="image/*">
+                <img id="editPreviewImg" class="mt-2 rounded border" style="max-height:150px; display:none;">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer"><button class="btn btn-primary" onclick="saveEditedListing()">Update Property</button></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    const supabaseUrl = 'https://mdtcckyejiwdzocklfmf.supabase.co';
+    const supabaseAnonKey = 'sb_publishable_1O-a6s0K1KANqu3w0nwFmw_uETdLXxn';
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+    let currentEditId = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setupImagePreview('photoInput', 'previewImg');
+      setupImagePreview('editPhotoInput', 'editPreviewImg');
+      checkAuth();
+    });
+
+    function setupImagePreview(inputId, imgId) {
+      const input = document.getElementById(inputId);
+      const img = document.getElementById(imgId);
+      input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (re) => { img.src = re.target.result; img.style.display = 'block'; };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    async function checkAuth() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session) {
+        document.getElementById('mainApp').style.display = 'block';
+        loadListings();
+      } else {
+        new bootstrap.Modal(document.getElementById('loginModal')).show();
+      }
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) document.getElementById('loginError').innerText = error.message;
+      else location.reload();
+    }
+
+    function logout() {
+      supabaseClient.auth.signOut().then(() => location.reload());
+    }
+
+    async function loadListings() {
+      const { data, error } = await supabaseClient.from('properties').select('*').order('created_at', { ascending: false });
+      if (error) return console.error(error);
+      
+      const container = document.getElementById('listingsContainer');
+      container.innerHTML = data.map(item => `
+        <div class="col-md-6 col-lg-4 mb-4">
+          <div class="card h-100 shadow-sm border-0">
+            <img src="${item.photo_url}" class="card-img-top" alt="Property" crossorigin="anonymous">
+            <div class="card-body">
+              <div class="d-flex justify-content-between">
+                 <span class="badge bg-primary mb-2">${item.category}</span>
+                 <span class="badge bg-secondary mb-2">${item.status}</span>
+              </div>
+              <h5 class="card-title mb-1">${item.location}</h5>
+              <p class="text-muted small mb-2"><i class="fas fa-expand-arrows-alt me-1"></i>${item.size || 'N/A'} • ${item.type}</p>
+              <h6 class="text-success fw-bold">${item.price}</h6>
+              <p class="description-text text-muted">${item.description || 'No description provided.'}</p>
+              <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-sm btn-outline-primary flex-grow-1" onclick="editListing('${item.id}')">Edit</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteListing('${item.id}')"><i class="fas fa-trash"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function addListing() {
+      const form = document.getElementById('addForm');
+      const file = document.getElementById('photoInput').files[0];
+      if (!file) return alert("Photo is required");
+
+      // 1. Upload Image
+      const fileName = `${Date.now()}_${file.name}`;
+      const { error: upError } = await supabaseClient.storage.from('property-photos').upload(fileName, file);
+      if (upError) return alert("Upload error: " + upError.message);
+
+      // 2. Get Public URL correctly
+      const { data: urlData } = supabaseClient.storage.from('property-photos').getPublicUrl(fileName);
+      const photo_url = urlData.publicUrl;
+
+      // 3. Insert Data
+      const formData = new FormData(form);
+      const payload = Object.fromEntries(formData);
+      payload.photo_url = photo_url;
+      
+      const { error: dbError } = await supabaseClient.from('properties').insert([payload]);
+      if (dbError) alert(dbError.message);
+      else {
+        bootstrap.Modal.getInstance(document.getElementById('addModal')).hide();
+        form.reset();
+        loadListings();
+      }
+    }
+
+    async function editListing(id) {
+      const { data, error } = await supabaseClient.from('properties').select('*').eq('id', id).single();
+      if (error) return;
+
+      currentEditId = id;
+      const form = document.getElementById('editForm');
+      Object.keys(data).forEach(key => {
+        const input = form.querySelector(`[name="${key}"]`);
+        if (input && key !== 'photo_url') input.value = data[key];
+      });
+
+      const preview = document.getElementById('editPreviewImg');
+      preview.src = data.photo_url;
+      preview.style.display = 'block';
+      
+      new bootstrap.Modal(document.getElementById('editModal')).show();
+    }
+
+    async function saveEditedListing() {
+      const form = document.getElementById('editForm');
+      const file = document.getElementById('editPhotoInput').files[0];
+      const formData = new FormData(form);
+      const payload = Object.fromEntries(formData);
+
+      if (file) {
+        const fileName = `${Date.now()}_${file.name}`;
+        await supabaseClient.storage.from('property-photos').upload(fileName, file);
+        const { data: urlData } = supabaseClient.storage.from('property-photos').getPublicUrl(fileName);
+        payload.photo_url = urlData.publicUrl;
+      }
+
+      const { error } = await supabaseClient.from('properties').update(payload).eq('id', currentEditId);
+      if (error) alert(error.message);
+      else {
+        bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+        loadListings();
+      }
+    }
+
+    async function deleteListing(id) {
+      if (!confirm("Delete this property?")) return;
+      const { error } = await supabaseClient.from('properties').delete().eq('id', id);
+      if (error) alert(error.message);
+      else loadListings();
+    }
+  </script>
+</body>
+</html>
