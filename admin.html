@@ -250,13 +250,11 @@
               <div class="col-12"><label>Description</label><textarea class="form-control" name="description" rows="3"></textarea></div>
               <div class="col-md-6">
                 <label>Latitude</label>
-                <input type="number" step="any" class="form-control" name="lat" 
-                       oninput="this.value = this.value.replace(/[^-0-9.]/g, '').replace(/(\..*)\./g, '$1')">
+                <input type="number" step="any" class="form-control" name="lat">
               </div>
               <div class="col-md-6">
                 <label>Longitude</label>
-                <input type="number" step="any" class="form-control" name="lng"
-                       oninput="this.value = this.value.replace(/[^-0-9.]/g, '').replace(/(\..*)\./g, '$1')">
+                <input type="number" step="any" class="form-control" name="lng">
               </div>
               <div class="col-12">
                 <label>Property Photo</label>
@@ -307,13 +305,11 @@
               <div class="col-12"><label>Description</label><textarea class="form-control" name="description" rows="3"></textarea></div>
               <div class="col-md-6">
                 <label>Latitude</label>
-                <input type="number" step="any" class="form-control" name="lat"
-                       oninput="this.value = this.value.replace(/[^-0-9.]/g, '').replace(/(\..*)\./g, '$1')">
+                <input type="number" step="any" class="form-control" name="lat">
               </div>
               <div class="col-md-6">
                 <label>Longitude</label>
-                <input type="number" step="any" class="form-control" name="lng"
-                       oninput="this.value = this.value.replace(/[^-0-9.]/g, '').replace(/(\..*)\./g, '$1')">
+                <input type="number" step="any" class="form-control" name="lng">
               </div>
               <div class="col-12">
                 <label>Change Photo (Optional)</label>
@@ -341,14 +337,24 @@
 
     let currentEditId = null;
 
-    // CRITICAL FIX: Sanitize numeric fields before DB operations
+    // FIXED: Improved sanitize function with better logging
     function sanitizeNumericFields(payload) {
       ['lat', 'lng'].forEach(field => {
-        if (payload[field] === '' || payload[field] === null || payload[field] === undefined) {
+        const value = payload[field];
+        
+        // If empty string, null, or undefined, set to null
+        if (value === '' || value === null || value === undefined) {
           payload[field] = null;
         } else {
-          const num = parseFloat(payload[field]);
-          payload[field] = isNaN(num) ? null : num;
+          // Try to parse as float
+          const num = parseFloat(value);
+          
+          // Only set to null if it's actually NaN, otherwise keep the number
+          if (isNaN(num)) {
+            payload[field] = null;
+          } else {
+            payload[field] = num;
+          }
         }
       });
       return payload;
@@ -506,8 +512,8 @@
         form.querySelector('[name="size"]').value = data.size || '';
         form.querySelector('[name="status"]').value = data.status || 'active';
         form.querySelector('[name="description"]').value = data.description || '';
-        form.querySelector('[name="lat"]').value = data.lat !== null && data.lat !== undefined ? data.lat : '';
-        form.querySelector('[name="lng"]').value = data.lng !== null && data.lng !== undefined ? data.lng : '';
+        form.querySelector('[name="lat"]').value = (data.lat !== null && data.lat !== undefined) ? data.lat : '';
+        form.querySelector('[name="lng"]').value = (data.lng !== null && data.lng !== undefined) ? data.lng : '';
         
         // Set preview image
         const preview = document.getElementById('editPreviewImg');
@@ -549,11 +555,8 @@
         loadListings();
       } catch (error) {
         console.error('Error updating listing:', error);
-        // User-friendly error for bigint issue
-        const errorMsg = error.message.includes('bigint') || error.message.includes('numeric')
-          ? 'Invalid coordinates format. Please enter valid numbers for latitude/longitude.'
-          : error.message;
-        alert(`Update failed: ${errorMsg}`);
+        // FIXED: Show actual error message instead of generic coordinate error
+        alert(`Update failed: ${error.message}`);
       }
     }
 
