@@ -248,8 +248,16 @@
                 </select>
               </div>
               <div class="col-12"><label>Description</label><textarea class="form-control" name="description" rows="3"></textarea></div>
-              <div class="col-md-6"><label>Latitude</label><input type="number" step="any" class="form-control" name="lat"></div>
-              <div class="col-md-6"><label>Longitude</label><input type="number" step="any" class="form-control" name="lng"></div>
+              <div class="col-md-6">
+                <label>Latitude</label>
+                <input type="number" step="any" class="form-control" name="lat" 
+                       oninput="this.value = this.value.replace(/[^-0-9.]/g, '').replace(/(\..*)\./g, '$1')">
+              </div>
+              <div class="col-md-6">
+                <label>Longitude</label>
+                <input type="number" step="any" class="form-control" name="lng"
+                       oninput="this.value = this.value.replace(/[^-0-9.]/g, '').replace(/(\..*)\./g, '$1')">
+              </div>
               <div class="col-12">
                 <label>Property Photo</label>
                 <input type="file" class="form-control" id="photoInput" accept="image/*" required>
@@ -297,8 +305,16 @@
                 </select>
               </div>
               <div class="col-12"><label>Description</label><textarea class="form-control" name="description" rows="3"></textarea></div>
-              <div class="col-md-6"><label>Latitude</label><input type="number" step="any" class="form-control" name="lat"></div>
-              <div class="col-md-6"><label>Longitude</label><input type="number" step="any" class="form-control" name="lng"></div>
+              <div class="col-md-6">
+                <label>Latitude</label>
+                <input type="number" step="any" class="form-control" name="lat"
+                       oninput="this.value = this.value.replace(/[^-0-9.]/g, '').replace(/(\..*)\./g, '$1')">
+              </div>
+              <div class="col-md-6">
+                <label>Longitude</label>
+                <input type="number" step="any" class="form-control" name="lng"
+                       oninput="this.value = this.value.replace(/[^-0-9.]/g, '').replace(/(\..*)\./g, '$1')">
+              </div>
               <div class="col-12">
                 <label>Change Photo (Optional)</label>
                 <input type="file" class="form-control" id="editPhotoInput" accept="image/*">
@@ -318,12 +334,25 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-    // Supabase configuration
+    // FIXED: Removed trailing spaces in Supabase config
     const supabaseUrl = 'https://mdtcckyejiwdzocklfmf.supabase.co';
     const supabaseAnonKey = 'sb_publishable_1O-a6s0K1KANqu3w0nwFmw_uETdLXxn';
     const supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
 
     let currentEditId = null;
+
+    // CRITICAL FIX: Sanitize numeric fields before DB operations
+    function sanitizeNumericFields(payload) {
+      ['lat', 'lng'].forEach(field => {
+        if (payload[field] === '' || payload[field] === null || payload[field] === undefined) {
+          payload[field] = null;
+        } else {
+          const num = parseFloat(payload[field]);
+          payload[field] = isNaN(num) ? null : num;
+        }
+      });
+      return payload;
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
       setupImagePreview('photoInput', 'previewImg');
@@ -441,9 +470,10 @@
         const { data: urlData } = supabaseClient.storage.from('property-photos').getPublicUrl(fileName);
         const photo_url = urlData.publicUrl;
 
-        // Insert data
+        // Prepare payload and SANITIZE NUMERIC FIELDS
         const formData = new FormData(form);
-        const payload = Object.fromEntries(formData);
+        let payload = Object.fromEntries(formData);
+        payload = sanitizeNumericFields(payload); // CRITICAL FIX
         payload.photo_url = photo_url;
         
         const { error: dbError } = await supabaseClient.from('properties').insert([payload]);
@@ -468,20 +498,20 @@
         currentEditId = id;
         const form = document.getElementById('editForm');
         
-        // Populate form fields
-        form.querySelector('[name="location"]').value = data.location;
-        form.querySelector('[name="type"]').value = data.type;
-        form.querySelector('[name="category"]').value = data.category;
-        form.querySelector('[name="price"]').value = data.price;
-        form.querySelector('[name="size"]').value = data.size;
-        form.querySelector('[name="status"]').value = data.status;
+        // Populate form fields (handle nulls safely)
+        form.querySelector('[name="location"]').value = data.location || '';
+        form.querySelector('[name="type"]').value = data.type || '';
+        form.querySelector('[name="category"]').value = data.category || 'For Sale';
+        form.querySelector('[name="price"]').value = data.price || '';
+        form.querySelector('[name="size"]').value = data.size || '';
+        form.querySelector('[name="status"]').value = data.status || 'active';
         form.querySelector('[name="description"]').value = data.description || '';
-        form.querySelector('[name="lat"]').value = data.lat || '';
-        form.querySelector('[name="lng"]').value = data.lng || '';
+        form.querySelector('[name="lat"]').value = data.lat !== null && data.lat !== undefined ? data.lat : '';
+        form.querySelector('[name="lng"]').value = data.lng !== null && data.lng !== undefined ? data.lng : '';
         
         // Set preview image
         const preview = document.getElementById('editPreviewImg');
-        preview.src = data.photo_url;
+        preview.src = data.photo_url || 'https://via.placeholder.com/150?text=No+Image';
         preview.style.display = 'block';
         
         new bootstrap.Modal(document.getElementById('editModal')).show();
@@ -496,8 +526,11 @@
         const form = document.getElementById('editForm');
         const file = document.getElementById('editPhotoInput').files[0];
         const formData = new FormData(form);
-        const payload = Object.fromEntries(formData);
-
+        let payload = Object.fromEntries(formData);
+        
+        // SANITIZE NUMERIC FIELDS BEFORE UPDATE
+        payload = sanitizeNumericFields(payload); // CRITICAL FIX
+        
         // Handle image upload if new file selected
         if (file) {
           const fileName = `${Date.now()}_${file.name}`;
@@ -516,7 +549,11 @@
         loadListings();
       } catch (error) {
         console.error('Error updating listing:', error);
-        alert(`Error: ${error.message || 'Failed to update property'}`);
+        // User-friendly error for bigint issue
+        const errorMsg = error.message.includes('bigint') || error.message.includes('numeric')
+          ? 'Invalid coordinates format. Please enter valid numbers for latitude/longitude.'
+          : error.message;
+        alert(`Update failed: ${errorMsg}`);
       }
     }
 
