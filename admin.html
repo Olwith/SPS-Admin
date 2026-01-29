@@ -536,6 +536,11 @@
         
         console.log('Payload before sanitization:', JSON.stringify(payload, null, 2)); // DEBUG
         
+        // CRITICAL FIX: Remove 'id' field from payload to prevent bigint error
+        delete payload.id;
+        
+        console.log('Payload after removing id:', JSON.stringify(payload, null, 2)); // DEBUG
+        
         // Sanitize ONLY lat/lng (the numeric fields)
         payload = sanitizeNumericFields(payload);
         
