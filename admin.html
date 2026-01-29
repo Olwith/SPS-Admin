@@ -337,26 +337,24 @@
 
     let currentEditId = null;
 
-    // FIXED: Improved sanitize function with better logging
+    // FIXED: Only sanitize lat/lng (the ONLY numeric fields in your DB)
     function sanitizeNumericFields(payload) {
+      // ONLY lat and lng are numeric in your database
       ['lat', 'lng'].forEach(field => {
-        const value = payload[field];
-        
-        // If empty string, null, or undefined, set to null
-        if (value === '' || value === null || value === undefined) {
-          payload[field] = null;
-        } else {
-          // Try to parse as float
-          const num = parseFloat(value);
+        if (payload.hasOwnProperty(field)) {
+          const value = payload[field];
           
-          // Only set to null if it's actually NaN, otherwise keep the number
-          if (isNaN(num)) {
+          // Convert empty strings to null for numeric fields
+          if (value === '' || value === null || value === undefined) {
             payload[field] = null;
           } else {
-            payload[field] = num;
+            // Parse as float
+            const num = parseFloat(value);
+            payload[field] = isNaN(num) ? null : num;
           }
         }
       });
+      
       return payload;
     }
 
@@ -476,10 +474,10 @@
         const { data: urlData } = supabaseClient.storage.from('property-photos').getPublicUrl(fileName);
         const photo_url = urlData.publicUrl;
 
-        // Prepare payload and SANITIZE NUMERIC FIELDS
+        // Prepare payload and sanitize ONLY lat/lng
         const formData = new FormData(form);
         let payload = Object.fromEntries(formData);
-        payload = sanitizeNumericFields(payload); // CRITICAL FIX
+        payload = sanitizeNumericFields(payload); // Only lat/lng
         payload.photo_url = photo_url;
         
         const { error: dbError } = await supabaseClient.from('properties').insert([payload]);
@@ -492,7 +490,8 @@
         loadListings();
       } catch (error) {
         console.error('Error adding listing:', error);
-        alert(`Error: ${error.message || 'Failed to add property'}`);
+        const errorMsg = error.message || error.error_description || JSON.stringify(error);
+        alert(`Error: ${errorMsg}`);
       }
     }
 
@@ -523,7 +522,8 @@
         new bootstrap.Modal(document.getElementById('editModal')).show();
       } catch (error) {
         console.error('Error loading property for edit:', error);
-        alert(`Error: ${error.message || 'Failed to load property'}`);
+        const errorMsg = error.message || error.error_description || JSON.stringify(error);
+        alert(`Error: ${errorMsg}`);
       }
     }
 
@@ -534,8 +534,12 @@
         const formData = new FormData(form);
         let payload = Object.fromEntries(formData);
         
-        // SANITIZE NUMERIC FIELDS BEFORE UPDATE
-        payload = sanitizeNumericFields(payload); // CRITICAL FIX
+        console.log('Payload before sanitization:', JSON.stringify(payload, null, 2)); // DEBUG
+        
+        // Sanitize ONLY lat/lng (the numeric fields)
+        payload = sanitizeNumericFields(payload);
+        
+        console.log('Payload after sanitization:', JSON.stringify(payload, null, 2)); // DEBUG
         
         // Handle image upload if new file selected
         if (file) {
@@ -547,16 +551,21 @@
           payload.photo_url = urlData.publicUrl;
         }
 
+        console.log('Final payload being sent:', JSON.stringify(payload, null, 2)); // DEBUG
+        
         const { error } = await supabaseClient.from('properties').update(payload).eq('id', currentEditId);
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase update error:', error);
+          throw error;
+        }
         
         // Success
         bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
         loadListings();
       } catch (error) {
         console.error('Error updating listing:', error);
-        // FIXED: Show actual error message instead of generic coordinate error
-        alert(`Update failed: ${error.message}`);
+        const errorMsg = error.message || error.error_description || JSON.stringify(error);
+        alert(`Update failed: ${errorMsg}`);
       }
     }
 
@@ -569,7 +578,8 @@
         loadListings();
       } catch (error) {
         console.error('Error deleting listing:', error);
-        alert(`Error: ${error.message || 'Failed to delete property'}`);
+        const errorMsg = error.message || error.error_description || JSON.stringify(error);
+        alert(`Error: ${errorMsg}`);
       }
     }
   </script>
